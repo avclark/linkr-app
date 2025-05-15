@@ -1,6 +1,7 @@
 // app/links/page.tsx
 'use client'
 
+import { TrashIcon } from '@heroicons/react/24/solid'
 import { useEffect, useState } from 'react'
 import { fetchLinks, updateLinks } from '@/lib/jsonbin'
 
@@ -45,9 +46,10 @@ export default function LinksPage() {
             />
             <button
               onClick={() => handleDelete(i)}
-              className="px-6 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+              className="text-gray-300 hover:text-red-600 transition"
+              title="Delete row"
             >
-              Delete
+              <TrashIcon className="h-5 w-5" />
             </button>
           </div>
         ))}
