@@ -30,6 +30,21 @@ export default function Home() {
     fetchLinks().then(setLinks)
   }, [])
 
+    useEffect(() => {
+      const handleKeyDown = (e: KeyboardEvent) => {
+        const isMac = navigator.platform.includes('Mac')
+        const isShortcut =
+          (isMac && e.metaKey && e.key === 'Enter') ||
+          (!isMac && e.ctrlKey && e.key === 'Enter')
+        if (isShortcut) {
+          e.preventDefault()
+          handleMatch()
+        }
+      }
+      window.addEventListener('keydown', handleKeyDown)
+      return () => window.removeEventListener('keydown', handleKeyDown)
+    }, [input, links, format])
+
   const handleMatch = async () => {
     const mentions = input.split('\n').map((m) => m.trim()).filter(Boolean)
     const fuse = new Fuse(links, {
