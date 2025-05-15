@@ -5,14 +5,17 @@ import { useState, useEffect } from 'react'
 
 export default function SettingsPage() {
   const [format, setFormat] = useState('')
+  const [savedFormat, setSavedFormat] = useState('')
 
   useEffect(() => {
     const saved = localStorage.getItem('linkr_format') || '- {name}: {url}'
     setFormat(saved)
+    setSavedFormat(saved)
   }, [])
 
   const handleSave = () => {
     localStorage.setItem('linkr_format', format)
+    setSavedFormat(format)
     alert('Saved!')
   }
 
@@ -31,6 +34,9 @@ export default function SettingsPage() {
       >
         Save Format
       </button>
+      <div className="mt-6 text-sm text-gray-500">
+        <strong>Currently saved format:</strong> <code>{savedFormat}</code>
+      </div>
     </div>
   )
 }

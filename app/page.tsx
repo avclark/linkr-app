@@ -44,12 +44,16 @@ export default function Home() {
       const result = fuse.search(mention)
       if (result.length > 0) {
         const { name, url } = result[0].item
-        outputLines.push(format.replace('{name}', name).replace('{url}', url))
+        outputLines.push(
+          format.replaceAll('{name}', name).replaceAll('{url}', url)
+        )
       } else {
         const url = prompt(`No match for "${mention}". Enter a URL:`)
         if (url) {
           newLinks.push({ name: mention, url, aliases: [] })
-          outputLines.push(format.replace('{name}', mention).replace('{url}', url))
+          outputLines.push(
+            format.replaceAll('{name}', mention).replaceAll('{url}', url)
+          )
         }
       }
     }
