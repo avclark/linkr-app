@@ -17,6 +17,11 @@ export default function LinksPage() {
     setLinks(updated)
   }
 
+  const handleDelete = (index: number) => {
+    const updated = links.filter((_, i) => i !== index)
+    setLinks(updated)
+  }
+
   const handleSave = async () => {
     await updateLinks(links)
     alert('Saved!')
@@ -27,7 +32,7 @@ export default function LinksPage() {
       <h2 className="text-xl font-semibold mb-4">Edit Links</h2>
       <div className="space-y-4">
         {links.map((link, i) => (
-          <div key={i} className="flex gap-2">
+          <div key={i} className="flex gap-2 items-center">
             <input
               value={link.name}
               onChange={(e) => handleChange(i, 'name', e.target.value)}
@@ -38,6 +43,12 @@ export default function LinksPage() {
               onChange={(e) => handleChange(i, 'url', e.target.value)}
               className="border p-2 w-2/3"
             />
+            <button
+              onClick={() => handleDelete(i)}
+              className="px-6 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+            >
+              Delete
+            </button>
           </div>
         ))}
         <button
