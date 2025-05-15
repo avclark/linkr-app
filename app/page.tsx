@@ -45,7 +45,7 @@ export default function Home() {
       if (result.length > 0) {
         const { name, url } = result[0].item
         outputLines.push(
-          format.replaceAll('{name}', mention).replaceAll('{url}', url)
+          format.replaceAll('{name}', name).replaceAll('{url}', url)
         )
       } else {
         const url = prompt(`No match for "${mention}". Enter a URL:`)
