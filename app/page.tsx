@@ -69,7 +69,7 @@ export default function Home() {
   
     const tempOutput: string[] = []
     const tempLinks: LinkEntry[] = [...links]
-    const remaining: string[] = []
+    // const remaining: string[] = []
   
     for (let i = 0; i < mentions.length; i++) {
       const mention = mentions[i]
