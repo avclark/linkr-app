@@ -5,7 +5,7 @@ import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from '@headlessui/re
 import { DocumentDuplicateIcon } from '@heroicons/react/24/outline'
 import Fuse from 'fuse.js'
 import { fetchLinks, updateLinks } from '@/lib/jsonbin'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 
 type LinkEntry = {
   name: string
@@ -25,6 +25,8 @@ export default function Home() {
     links: LinkEntry[]
     remaining: string[]
   } | null>(null)
+
+  const inputRef = useRef<HTMLInputElement>(null)
   // Set format from localStorage once on mount
   useEffect(() => {
     console.log('✅ ENV CHECK:', {
@@ -41,6 +43,16 @@ export default function Home() {
   useEffect(() => {
     fetchLinks().then(setLinks)
   }, [])
+
+  useEffect(() => {
+    if (pendingMention) {
+      const timer = setTimeout(() => {
+        inputRef.current?.focus()
+      }, 50)
+  
+      return () => clearTimeout(timer)
+    }
+  }, [pendingMention])
 
   // Register keyboard shortcut for copying output
   // useEffect(() => {
@@ -201,8 +213,15 @@ export default function Home() {
                 </DialogTitle>
                 <p className="mt-2 text-sm text-gray-600">Please enter a URL:</p>
                 <input
+                  ref={inputRef}
                   value={newUrl}
                   onChange={(e) => setNewUrl(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      handleAddLink()
+                    }
+                  }}
                   className="mt-3 w-full p-2 border rounded"
                   placeholder="https://example.com"
                 />
