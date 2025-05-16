@@ -3,9 +3,9 @@
 
 import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from '@headlessui/react'
 import { DocumentDuplicateIcon } from '@heroicons/react/24/outline'
-import { useEffect, useState } from 'react'
 import Fuse from 'fuse.js'
 import { fetchLinks, updateLinks } from '@/lib/jsonbin'
+import { useEffect, useState, useCallback } from 'react'
 
 type LinkEntry = {
   name: string
@@ -60,22 +60,7 @@ export default function Home() {
   //   return () => window.removeEventListener('keydown', handleKeydown)
   // }, [output])
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const isMac = navigator.platform.includes('Mac')
-      const isShortcut =
-        (isMac && e.metaKey && e.key === 'Enter') ||
-        (!isMac && e.ctrlKey && e.key === 'Enter')
-      if (isShortcut) {
-        e.preventDefault()
-        handleMatch()
-      }
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [input, links, format])
-
-  const handleMatch = async () => {
+  const handleMatch = useCallback(async () => {
     const mentions = input.split('\n').map((m) => m.trim()).filter(Boolean)
     const fuse = new Fuse(links, {
       keys: ['name', 'aliases'],
@@ -94,7 +79,6 @@ export default function Home() {
         const { name, url } = result[0].item
         tempOutput.push(format.replaceAll('{name}', name).replaceAll('{url}', url))
       } else {
-        // Stop and capture remaining mentions from this point
         setPendingMention(mention)
         setProcessingState({
           output: tempOutput,
@@ -105,11 +89,26 @@ export default function Home() {
       }
     }
   
-    // No unknowns — finish normally
     setOutput(tempOutput.join('\n'))
     setLinks(tempLinks)
     await updateLinks(tempLinks)
-  }
+  }, [input, links, format])
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const isMac = navigator.platform.includes('Mac')
+      const isShortcut =
+        (isMac && e.metaKey && e.key === 'Enter') ||
+        (!isMac && e.ctrlKey && e.key === 'Enter')
+      if (isShortcut) {
+        e.preventDefault()
+        handleMatch()
+      }
+    }
+  
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [handleMatch])
 
   const handleAddLink = async () => {
     if (!pendingMention || !newUrl.trim() || !processingState) return
