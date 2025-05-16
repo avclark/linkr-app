@@ -2,10 +2,10 @@
 'use client'
 
 import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from '@headlessui/react'
-import { DocumentDuplicateIcon } from '@heroicons/react/24/outline'
 import Fuse from 'fuse.js'
 import { fetchLinks, updateLinks } from '@/lib/jsonbin'
 import { useEffect, useRef, useState, useCallback } from 'react'
+import CopyButton from '@/components/CopyButton'
 
 type LinkEntry = {
   name: string
@@ -184,15 +184,7 @@ export default function Home() {
           placeholder="Formatted output..."
           className="w-full h-[400px] p-4 border rounded resize-none bg-gray-50"
         />
-        <button
-          onClick={() => {
-            navigator.clipboard.writeText(output)
-          }}
-          className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
-          title="Copy to clipboard"
-        >
-          <DocumentDuplicateIcon className="h-5 w-5" />
-        </button>
+        <CopyButton text={output} />
       </div>
       <button
         onClick={handleMatch}
