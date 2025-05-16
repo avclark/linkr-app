@@ -1,6 +1,7 @@
 // app/page.tsx
 'use client'
 
+import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from '@headlessui/react'
 import { DocumentDuplicateIcon } from '@heroicons/react/24/outline'
 import { useEffect, useState } from 'react'
 import Fuse from 'fuse.js'
@@ -17,55 +18,62 @@ export default function Home() {
   const [output, setOutput] = useState('')
   const [links, setLinks] = useState<LinkEntry[]>([])
   const [format, setFormat] = useState('- {name}: {url}')
-    // Set format from localStorage once on mount
-    useEffect(() => {
-      console.log('✅ ENV CHECK:', {
-        apiKey: process.env.NEXT_PUBLIC_JSONBIN_API_KEY,
-        binId: process.env.NEXT_PUBLIC_JSONBIN_BIN_ID,
-        url: process.env.NEXT_PUBLIC_JSONBIN_URL,
-      })
+  const [pendingMention, setPendingMention] = useState<string | null>(null)
+  const [newUrl, setNewUrl] = useState('')
+  const [processingState, setProcessingState] = useState<{
+    output: string[]
+    links: LinkEntry[]
+    remaining: string[]
+  } | null>(null)
+  // Set format from localStorage once on mount
+  useEffect(() => {
+    console.log('✅ ENV CHECK:', {
+      apiKey: process.env.NEXT_PUBLIC_JSONBIN_API_KEY,
+      binId: process.env.NEXT_PUBLIC_JSONBIN_BIN_ID,
+      url: process.env.NEXT_PUBLIC_JSONBIN_URL,
+    })
 
-      const saved = localStorage.getItem('linkr_format')
-      if (saved) setFormat(saved)
-    }, [])
+    const saved = localStorage.getItem('linkr_format')
+    if (saved) setFormat(saved)
+  }, [])
 
-    // Load link data from JSONBin
-    useEffect(() => {
-      fetchLinks().then(setLinks)
-    }, [])
+  // Load link data from JSONBin
+  useEffect(() => {
+    fetchLinks().then(setLinks)
+  }, [])
 
-    // Register keyboard shortcut for copying output
-    // useEffect(() => {
-    //   const handleKeydown = (e: KeyboardEvent) => {
-    //     const isMac = navigator.platform.includes('Mac')
-    //     const copyShortcut =
-    //     (isMac && e.ctrlKey && e.altKey && e.metaKey && e.key.toLowerCase() === 'c') ||
-    //     (!isMac && e.ctrlKey && e.altKey && e.shiftKey && e.key.toLowerCase() === 'c')
-      
-    //     if (copyShortcut) {
-    //       e.preventDefault()
-    //       navigator.clipboard.writeText(output)
-    //     }
-    //   }
+  // Register keyboard shortcut for copying output
+  // useEffect(() => {
+  //   const handleKeydown = (e: KeyboardEvent) => {
+  //     const isMac = navigator.platform.includes('Mac')
+  //     const copyShortcut =
+  //     (isMac && e.ctrlKey && e.altKey && e.metaKey && e.key.toLowerCase() === 'c') ||
+  //     (!isMac && e.ctrlKey && e.altKey && e.shiftKey && e.key.toLowerCase() === 'c')
+    
+  //     if (copyShortcut) {
+  //       e.preventDefault()
+  //       navigator.clipboard.writeText(output)
+  //     }
+  //   }
 
-    //   window.addEventListener('keydown', handleKeydown)
-    //   return () => window.removeEventListener('keydown', handleKeydown)
-    // }, [output])
+  //   window.addEventListener('keydown', handleKeydown)
+  //   return () => window.removeEventListener('keydown', handleKeydown)
+  // }, [output])
 
-    useEffect(() => {
-      const handleKeyDown = (e: KeyboardEvent) => {
-        const isMac = navigator.platform.includes('Mac')
-        const isShortcut =
-          (isMac && e.metaKey && e.key === 'Enter') ||
-          (!isMac && e.ctrlKey && e.key === 'Enter')
-        if (isShortcut) {
-          e.preventDefault()
-          handleMatch()
-        }
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const isMac = navigator.platform.includes('Mac')
+      const isShortcut =
+        (isMac && e.metaKey && e.key === 'Enter') ||
+        (!isMac && e.ctrlKey && e.key === 'Enter')
+      if (isShortcut) {
+        e.preventDefault()
+        handleMatch()
       }
-      window.addEventListener('keydown', handleKeyDown)
-      return () => window.removeEventListener('keydown', handleKeyDown)
-    }, [input, links, format])
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [input, links, format])
 
   const handleMatch = async () => {
     const mentions = input.split('\n').map((m) => m.trim()).filter(Boolean)
@@ -73,31 +81,81 @@ export default function Home() {
       keys: ['name', 'aliases'],
       threshold: 0.3,
     })
-
-    const outputLines: string[] = []
-    const newLinks: LinkEntry[] = [...links]
-
-    for (const mention of mentions) {
+  
+    const tempOutput: string[] = []
+    const tempLinks: LinkEntry[] = [...links]
+    const remaining: string[] = []
+  
+    for (let i = 0; i < mentions.length; i++) {
+      const mention = mentions[i]
       const result = fuse.search(mention)
+  
       if (result.length > 0) {
         const { name, url } = result[0].item
-        outputLines.push(
-          format.replaceAll('{name}', name).replaceAll('{url}', url)
-        )
+        tempOutput.push(format.replaceAll('{name}', name).replaceAll('{url}', url))
       } else {
-        const url = prompt(`No match for "${mention}". Enter a URL:`)
-        if (url) {
-          newLinks.push({ name: mention, url, aliases: [] })
-          outputLines.push(
-            format.replaceAll('{name}', mention).replaceAll('{url}', url)
-          )
-        }
+        // Stop and capture remaining mentions from this point
+        setPendingMention(mention)
+        setProcessingState({
+          output: tempOutput,
+          links: tempLinks,
+          remaining: mentions.slice(i + 1),
+        })
+        return
       }
     }
+  
+    // No unknowns — finish normally
+    setOutput(tempOutput.join('\n'))
+    setLinks(tempLinks)
+    await updateLinks(tempLinks)
+  }
 
-    setOutput(outputLines.join('\n'))
-    setLinks(newLinks)
-    await updateLinks(newLinks)
+  const handleAddLink = async () => {
+    if (!pendingMention || !newUrl.trim() || !processingState) return
+  
+    const newEntry = { name: pendingMention, url: newUrl.trim(), aliases: [] }
+    const updatedLinks = [...processingState.links, newEntry]
+    const newLine = format
+      .replaceAll('{name}', pendingMention)
+      .replaceAll('{url}', newUrl.trim())
+    const updatedOutput = [...processingState.output, newLine]
+    const remaining = [...processingState.remaining]
+  
+    // Process remaining mentions
+    const fuse = new Fuse(updatedLinks, {
+      keys: ['name', 'aliases'],
+      threshold: 0.3,
+    })
+  
+    while (remaining.length > 0) {
+      const nextMention = remaining.shift()!
+      const result = fuse.search(nextMention)
+  
+      if (result.length > 0) {
+        const { name, url } = result[0].item
+        updatedOutput.push(format.replaceAll('{name}', name).replaceAll('{url}', url))
+      } else {
+        setProcessingState({
+          output: updatedOutput,
+          links: updatedLinks,
+          remaining,
+        })
+        setLinks(updatedLinks)
+        setOutput(updatedOutput.join('\n'))
+        setPendingMention(nextMention)
+        setNewUrl('')
+        return
+      }
+    }
+  
+    // All mentions processed
+    setProcessingState(null)
+    setLinks(updatedLinks)
+    setOutput(updatedOutput.join('\n'))
+    await updateLinks(updatedLinks)
+    setPendingMention(null)
+    setNewUrl('')
   }
 
   return (
@@ -131,6 +189,46 @@ export default function Home() {
       >
         Match and Format
       </button>
+      <Dialog open={!!pendingMention} onClose={() => {}} className="relative z-10">
+        <DialogBackdrop
+          className="fixed inset-0 bg-gray-500/75 transition-opacity"
+        />
+        <div className="fixed inset-0 z-10 w-screen overflow-y-auto">
+          <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+            <DialogPanel className="relative transform overflow-hidden rounded-lg bg-white px-4 pt-5 pb-4 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-sm sm:p-6">
+              <div className="text-center">
+                <DialogTitle as="h3" className="text-base font-semibold text-gray-900">
+                  No match for “{pendingMention}”
+                </DialogTitle>
+                <p className="mt-2 text-sm text-gray-600">Please enter a URL:</p>
+                <input
+                  value={newUrl}
+                  onChange={(e) => setNewUrl(e.target.value)}
+                  className="mt-3 w-full p-2 border rounded"
+                  placeholder="https://example.com"
+                />
+              </div>
+              <div className="mt-5 sm:mt-6 sm:grid sm:grid-flow-row-dense sm:grid-cols-2 sm:gap-3">
+                <button
+                  onClick={() => {
+                    setPendingMention(null)
+                    setNewUrl('')
+                  }}
+                  className="inline-flex justify-center rounded-md bg-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-300"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAddLink}
+                  className="inline-flex justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500"
+                >
+                  Add Link
+                </button>
+              </div>
+            </DialogPanel>
+          </div>
+        </div>
+      </Dialog>
     </div>
   )
 }

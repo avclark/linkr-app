@@ -1,7 +1,7 @@
 // app/links/page.tsx
 'use client'
 
-import { TrashIcon } from '@heroicons/react/24/solid'
+import { TrashIcon } from '@heroicons/react/24/outline'
 import { useEffect, useState } from 'react'
 import { fetchLinks, updateLinks } from '@/lib/jsonbin'
 
