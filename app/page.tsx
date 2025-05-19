@@ -4,6 +4,7 @@
 import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from '@headlessui/react'
 import Fuse from 'fuse.js'
 import { fetchLinks, updateLinks } from '@/lib/jsonbin'
+import { fetchSearchSuggestions, type SearchSuggestion } from '@/lib/searchSuggestions'
 import { useEffect, useRef, useState, useCallback } from 'react'
 import CopyButton from '@/components/CopyButton'
 
@@ -14,12 +15,13 @@ type LinkEntry = {
 }
 
 export default function Home() {
+  const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([])
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false)
   const [input, setInput] = useState('')
   const [output, setOutput] = useState('')
   const [links, setLinks] = useState<LinkEntry[]>([])
   const [format, setFormat] = useState('- {name}: {url}')
-  const [pendingMention, setPendingMention] = useState<string | null>(null)
-  const [newUrl, setNewUrl] = useState('')
+  const [pendingEntry, setPendingEntry] = useState<{ name: string; url: string } | null>(null)
   const [processingState, setProcessingState] = useState<{
     output: string[]
     links: LinkEntry[]
@@ -27,14 +29,21 @@ export default function Home() {
   } | null>(null)
 
   const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (pendingEntry?.name) {
+      setLoadingSuggestions(true)
+      fetchSearchSuggestions(pendingEntry.name).then((results) => {
+        setSuggestions(results)
+        setLoadingSuggestions(false)
+      })
+    } else {
+      setSuggestions([])
+    }
+  }, [pendingEntry?.name])
+
   // Set format from localStorage once on mount
   useEffect(() => {
-    console.log('✅ ENV CHECK:', {
-      apiKey: process.env.NEXT_PUBLIC_JSONBIN_API_KEY,
-      binId: process.env.NEXT_PUBLIC_JSONBIN_BIN_ID,
-      url: process.env.NEXT_PUBLIC_JSONBIN_URL,
-    })
-
     const saved = localStorage.getItem('linkr_format')
     if (saved) setFormat(saved)
   }, [])
@@ -45,14 +54,10 @@ export default function Home() {
   }, [])
 
   useEffect(() => {
-    if (pendingMention) {
-      const timer = setTimeout(() => {
-        inputRef.current?.focus()
-      }, 50)
-  
-      return () => clearTimeout(timer)
+    if (pendingEntry && inputRef.current) {
+      inputRef.current.focus()
     }
-  }, [pendingMention])
+  }, [pendingEntry])
 
   // Register keyboard shortcut for copying output
   // useEffect(() => {
@@ -91,7 +96,7 @@ export default function Home() {
         const { name, url } = result[0].item
         tempOutput.push(format.replaceAll('{name}', name).replaceAll('{url}', url))
       } else {
-        setPendingMention(mention)
+        setPendingEntry({ name: mention.trim(), url: '' })
         setProcessingState({
           output: tempOutput,
           links: tempLinks,
@@ -123,13 +128,17 @@ export default function Home() {
   }, [handleMatch])
 
   const handleAddLink = async () => {
-    if (!pendingMention || !newUrl.trim() || !processingState) return
+    if (!pendingEntry?.name.trim() || !pendingEntry?.url.trim() || !processingState) return
   
-    const newEntry = { name: pendingMention, url: newUrl.trim(), aliases: [] }
+    const newEntry = {
+      name: pendingEntry.name.trim(),
+      url: pendingEntry.url.trim(),
+      aliases: [],
+    }
     const updatedLinks = [...processingState.links, newEntry]
     const newLine = format
-      .replaceAll('{name}', pendingMention)
-      .replaceAll('{url}', newUrl.trim())
+      .replaceAll('{name}', pendingEntry.name.trim())
+      .replaceAll('{url}', pendingEntry.url.trim())
     const updatedOutput = [...processingState.output, newLine]
     const remaining = [...processingState.remaining]
   
@@ -154,8 +163,6 @@ export default function Home() {
         })
         setLinks(updatedLinks)
         setOutput(updatedOutput.join('\n'))
-        setPendingMention(nextMention)
-        setNewUrl('')
         return
       }
     }
@@ -165,8 +172,6 @@ export default function Home() {
     setLinks(updatedLinks)
     setOutput(updatedOutput.join('\n'))
     await updateLinks(updatedLinks)
-    setPendingMention(null)
-    setNewUrl('')
   }
 
   return (
@@ -192,7 +197,7 @@ export default function Home() {
       >
         Match and Format
       </button>
-      <Dialog open={!!pendingMention} onClose={() => {}} className="relative z-10">
+      <Dialog open={!!pendingEntry} onClose={() => {}} className="relative z-10">
         <DialogBackdrop
           className="fixed inset-0 bg-gray-500/75 transition-opacity"
         />
@@ -201,13 +206,20 @@ export default function Home() {
             <DialogPanel className="relative transform overflow-hidden rounded-lg bg-white px-4 pt-5 pb-4 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-sm sm:p-6">
               <div className="text-center">
                 <DialogTitle as="h3" className="text-base font-semibold text-gray-900">
-                  No match for “{pendingMention}”
+                  No match for “{pendingEntry?.name}”
                 </DialogTitle>
                 <p className="mt-2 text-sm text-gray-600">Please enter a URL:</p>
                 <input
+                  value={pendingEntry?.name || ''}
+                  onChange={(e) => setPendingEntry((prev) => prev && { ...prev, name: e.target.value })}
+                  className="mt-3 w-full p-2 border rounded"
+                  placeholder="Name"
+                />
+
+                <input
                   ref={inputRef}
-                  value={newUrl}
-                  onChange={(e) => setNewUrl(e.target.value)}
+                  value={pendingEntry?.url || ''}
+                  onChange={(e) => setPendingEntry((prev) => prev && { ...prev, url: e.target.value })}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
                       e.preventDefault()
@@ -217,12 +229,51 @@ export default function Home() {
                   className="mt-3 w-full p-2 border rounded"
                   placeholder="https://example.com"
                 />
+
+                {loadingSuggestions && (
+                  <p className="mt-2 text-sm text-gray-500 italic">Searching suggestions...</p>
+                )}
+
+                {!loadingSuggestions && suggestions.length > 0 && (
+                  <div className="mt-4 text-left">
+                    <p className="text-sm font-medium text-gray-700 mb-2">Suggestions:</p>
+                    <ul className="space-y-3">
+                      {suggestions.map((sug, i) => (
+                        <li
+                          key={i}
+                          onClick={() =>
+                            setPendingEntry((prev) => prev && { ...prev, url: sug.url })
+                          }
+                          className="cursor-pointer rounded-lg border p-3 hover:bg-gray-50 transition"
+                        >
+                          <div className="flex items-center gap-2">
+                            <img
+                              src={`https://www.google.com/s2/favicons?domain=${new URL(sug.url).hostname}&sz=32`}
+                              alt=""
+                              className="w-5 h-5"
+                            />
+                            <a
+                              href={sug.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sm font-medium text-indigo-600 hover:underline"
+                              onClick={(e) => e.stopPropagation()} // prevent also filling input
+                            >
+                              {sug.title}
+                            </a>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">{sug.url}</p>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
               <div className="mt-5 sm:mt-6 sm:grid sm:grid-flow-row-dense sm:grid-cols-2 sm:gap-3">
                 <button
                   onClick={() => {
-                    setPendingMention(null)
-                    setNewUrl('')
+                    setPendingEntry(null)
+                    setSuggestions([])
                   }}
                   className="inline-flex justify-center rounded-md bg-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-300"
                 >
