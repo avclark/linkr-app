@@ -15,13 +15,17 @@ type LinkEntry = {
 }
 
 export default function Home() {
+  const inputRefState = useRef('')
   const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([])
+  const [shouldReRunMatch, setShouldReRunMatch] = useState(false)
   const [loadingSuggestions, setLoadingSuggestions] = useState(false)
   const [input, setInput] = useState('')
   const [output, setOutput] = useState('')
   const [links, setLinks] = useState<LinkEntry[]>([])
   const [format, setFormat] = useState('- {name}: {url}')
+  const [modalJustOpened, setModalJustOpened] = useState(false)
   const [pendingEntry, setPendingEntry] = useState<{ name: string; url: string } | null>(null)
+  const [pendingSearchQuery, setPendingSearchQuery] = useState<string | null>(null)
   const [processingState, setProcessingState] = useState<{
     output: string[]
     links: LinkEntry[]
@@ -31,16 +35,19 @@ export default function Home() {
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    if (pendingEntry?.name) {
+    if (pendingSearchQuery) {
       setLoadingSuggestions(true)
-      fetchSearchSuggestions(pendingEntry.name).then((results) => {
+      fetchSearchSuggestions(pendingSearchQuery).then((results) => {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Suggestions returned from API route:', results)
+        }
         setSuggestions(results)
         setLoadingSuggestions(false)
       })
     } else {
       setSuggestions([])
     }
-  }, [pendingEntry?.name])
+  }, [pendingSearchQuery])
 
   // Set format from localStorage once on mount
   useEffect(() => {
@@ -54,31 +61,14 @@ export default function Home() {
   }, [])
 
   useEffect(() => {
-    if (pendingEntry && inputRef.current) {
+    if (modalJustOpened && inputRef.current) {
       inputRef.current.focus()
+      setModalJustOpened(false)
     }
-  }, [pendingEntry])
-
-  // Register keyboard shortcut for copying output
-  // useEffect(() => {
-  //   const handleKeydown = (e: KeyboardEvent) => {
-  //     const isMac = navigator.platform.includes('Mac')
-  //     const copyShortcut =
-  //     (isMac && e.ctrlKey && e.altKey && e.metaKey && e.key.toLowerCase() === 'c') ||
-  //     (!isMac && e.ctrlKey && e.altKey && e.shiftKey && e.key.toLowerCase() === 'c')
-    
-  //     if (copyShortcut) {
-  //       e.preventDefault()
-  //       navigator.clipboard.writeText(output)
-  //     }
-  //   }
-
-  //   window.addEventListener('keydown', handleKeydown)
-  //   return () => window.removeEventListener('keydown', handleKeydown)
-  // }, [output])
+  }, [modalJustOpened])
 
   const handleMatch = useCallback(async () => {
-    const mentions = input.split('\n').map((m) => m.trim()).filter(Boolean)
+    const mentions = inputRefState.current.split('\n').map((m) => m.trim()).filter(Boolean)
     const fuse = new Fuse(links, {
       keys: ['name', 'aliases'],
       threshold: 0.3,
@@ -97,6 +87,8 @@ export default function Home() {
         tempOutput.push(format.replaceAll('{name}', name).replaceAll('{url}', url))
       } else {
         setPendingEntry({ name: mention.trim(), url: '' })
+        setModalJustOpened(true)
+        setPendingSearchQuery(mention.trim())
         setProcessingState({
           output: tempOutput,
           links: tempLinks,
@@ -110,6 +102,13 @@ export default function Home() {
     setLinks(tempLinks)
     await updateLinks(tempLinks)
   }, [input, links, format])
+
+  useEffect(() => {
+    if (shouldReRunMatch) {
+      setShouldReRunMatch(false)
+      handleMatch()
+    }
+  }, [shouldReRunMatch, handleMatch])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -135,50 +134,43 @@ export default function Home() {
       url: pendingEntry.url.trim(),
       aliases: [],
     }
+  
     const updatedLinks = [...processingState.links, newEntry]
     const newLine = format
-      .replaceAll('{name}', pendingEntry.name.trim())
-      .replaceAll('{url}', pendingEntry.url.trim())
+      .replaceAll('{name}', newEntry.name)
+      .replaceAll('{url}', newEntry.url)
     const updatedOutput = [...processingState.output, newLine]
-    const remaining = [...processingState.remaining]
   
-    // Process remaining mentions
-    const fuse = new Fuse(updatedLinks, {
-      keys: ['name', 'aliases'],
-      threshold: 0.3,
-    })
+    // Update input and sync to ref
+    const updatedInput = inputRefState.current
+      .split('\n')
+      .map((line) => (line.trim() === pendingSearchQuery ? newEntry.name : line))
+      .join('\n')
   
-    while (remaining.length > 0) {
-      const nextMention = remaining.shift()!
-      const result = fuse.search(nextMention)
+    setInput(updatedInput)
+    inputRefState.current = updatedInput
   
-      if (result.length > 0) {
-        const { name, url } = result[0].item
-        updatedOutput.push(format.replaceAll('{name}', name).replaceAll('{url}', url))
-      } else {
-        setProcessingState({
-          output: updatedOutput,
-          links: updatedLinks,
-          remaining,
-        })
-        setLinks(updatedLinks)
-        setOutput(updatedOutput.join('\n'))
-        return
-      }
-    }
-  
-    // All mentions processed
-    setProcessingState(null)
-    setLinks(updatedLinks)
     setOutput(updatedOutput.join('\n'))
     await updateLinks(updatedLinks)
+  
+    // Clear modal state
+    setPendingEntry(null)
+    setPendingSearchQuery(null)
+    setSuggestions([])
+    setProcessingState(null)
+  
+    // ✅ Flag that we should run handleMatch *after* state updates
+    setShouldReRunMatch(true)
   }
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       <textarea
         value={input}
-        onChange={(e) => setInput(e.target.value)}
+        onChange={(e) => {
+          setInput(e.target.value)
+          inputRefState.current = e.target.value
+        }}
         placeholder="Paste mentions here..."
         className="w-full h-[400px] p-4 border rounded resize-none"
       />
@@ -273,6 +265,7 @@ export default function Home() {
                 <button
                   onClick={() => {
                     setPendingEntry(null)
+                    setPendingSearchQuery(null)
                     setSuggestions([])
                   }}
                   className="inline-flex justify-center rounded-md bg-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-300"
