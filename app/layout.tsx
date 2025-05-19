@@ -1,15 +1,18 @@
 // app/layout.tsx
 import './globals.css'
 import Link from 'next/link'
+import { Toaster } from 'react-hot-toast'
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'Linkr',
+  description: 'Smart linking app for devs',
+}
 
 const navItems = [
   { name: 'Links', href: '/links' },
   { name: 'Settings', href: '/settings' },
 ]
-
-export const metadata = {
-  title: 'Linkr',
-}
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -34,6 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </nav>
           <main className="mx-auto max-w-7xl p-6">{children}</main>
         </div>
+        <Toaster position="top-right" reverseOrder={false} />
       </body>
     </html>
   )

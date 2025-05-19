@@ -1,6 +1,7 @@
 // app/links/page.tsx
 'use client'
 
+import { toast } from 'react-hot-toast'
 import { TrashIcon } from '@heroicons/react/24/outline'
 import { useEffect, useState } from 'react'
 import { fetchLinks, updateLinks } from '@/lib/jsonbin'
@@ -25,7 +26,7 @@ export default function LinksPage() {
 
   const handleSave = async () => {
     await updateLinks(links)
-    alert('Saved!')
+    toast.success('Links saved!')
   }
 
   return (
