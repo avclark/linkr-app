@@ -23,8 +23,13 @@ export async function GET(req: NextRequest) {
 
     const data = await response.json()
 
+    type RawResult = {
+      title: string
+      url: string
+    }
+    
     const results =
-      data.web?.results?.map((r) => ({
+      (data.web?.results as RawResult[])?.map((r) => ({
         title: r.title,
         url: r.url,
       })) ?? []

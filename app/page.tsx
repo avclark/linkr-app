@@ -1,6 +1,7 @@
 // app/page.tsx
 'use client'
 
+import Image from 'next/image'
 import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from '@headlessui/react'
 import Fuse from 'fuse.js'
 import { fetchLinks, updateLinks } from '@/lib/jsonbin'
@@ -101,7 +102,7 @@ export default function Home() {
     setOutput(tempOutput.join('\n'))
     setLinks(tempLinks)
     await updateLinks(tempLinks)
-  }, [input, links, format])
+  }, [links, format])
 
   useEffect(() => {
     if (shouldReRunMatch) {
@@ -239,11 +240,13 @@ export default function Home() {
                           className="cursor-pointer rounded-lg border p-3 hover:bg-gray-50 transition"
                         >
                           <div className="flex items-center gap-2">
-                            <img
-                              src={`https://www.google.com/s2/favicons?domain=${new URL(sug.url).hostname}&sz=32`}
-                              alt=""
-                              className="w-5 h-5"
-                            />
+                          <Image
+                            src={`https://www.google.com/s2/favicons?domain=${new URL(sug.url).hostname}&sz=32`}
+                            alt=""
+                            width={20}
+                            height={20}
+                            className="w-5 h-5"
+                          />
                             <a
                               href={sug.url}
                               target="_blank"
