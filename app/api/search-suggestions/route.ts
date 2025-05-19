@@ -23,10 +23,11 @@ export async function GET(req: NextRequest) {
 
     const data = await response.json()
 
-    const results = data.web?.results?.map((r: any) => ({
-      title: r.title,
-      url: r.url,
-    })) ?? []
+    const results =
+      data.web?.results?.map((r) => ({
+        title: r.title,
+        url: r.url,
+      })) ?? []
 
     return NextResponse.json(results)
   } catch (err) {
