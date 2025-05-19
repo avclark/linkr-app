@@ -18,7 +18,6 @@ type LinkEntry = {
 export default function Home() {
   const inputRefState = useRef('')
   const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([])
-  const [shouldReRunMatch, setShouldReRunMatch] = useState(false)
   const [loadingSuggestions, setLoadingSuggestions] = useState(false)
   const [input, setInput] = useState('')
   const [output, setOutput] = useState('')
@@ -68,6 +67,7 @@ export default function Home() {
     }
   }, [modalJustOpened])
 
+  // handleMatch
   const handleMatch = useCallback(async () => {
     const mentions = inputRefState.current.split('\n').map((m) => m.trim()).filter(Boolean)
     const fuse = new Fuse(links, {
@@ -77,7 +77,6 @@ export default function Home() {
   
     const tempOutput: string[] = []
     const tempLinks: LinkEntry[] = [...links]
-    // const remaining: string[] = []
   
     for (let i = 0; i < mentions.length; i++) {
       const mention = mentions[i]
@@ -102,14 +101,8 @@ export default function Home() {
     setOutput(tempOutput.join('\n'))
     setLinks(tempLinks)
     await updateLinks(tempLinks)
+    return
   }, [links, format])
-
-  useEffect(() => {
-    if (shouldReRunMatch) {
-      setShouldReRunMatch(false)
-      handleMatch()
-    }
-  }, [shouldReRunMatch, handleMatch])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -127,6 +120,49 @@ export default function Home() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [handleMatch])
 
+  // continueMatch
+  const continueMatch = async ({
+    output,
+    links: tempLinks,
+    remaining,
+  }: {
+    output: string[]
+    links: LinkEntry[]
+    remaining: string[]
+  }) => {
+    const tempOutput = [...output]
+    const fuse = new Fuse(tempLinks, {
+      keys: ['name', 'aliases'],
+      threshold: 0.3,
+    })
+
+    while (remaining.length > 0) {
+      const nextMention = remaining.shift()!
+      const result = fuse.search(nextMention)
+
+      if (result.length > 0) {
+        const { name, url } = result[0].item
+        tempOutput.push(format.replaceAll('{name}', name).replaceAll('{url}', url))
+      } else {
+        setPendingEntry({ name: nextMention.trim(), url: '' })
+        setModalJustOpened(true)
+        setPendingSearchQuery(nextMention.trim())
+        setProcessingState({
+          output: tempOutput,
+          links: tempLinks,
+          remaining,
+        })
+        return
+      }
+    }
+
+    setProcessingState(null)
+    setLinks(tempLinks)
+    setOutput(tempOutput.join('\n'))
+    await updateLinks(tempLinks)
+  }
+
+  // handleAddLink
   const handleAddLink = async () => {
     if (!pendingEntry?.name.trim() || !pendingEntry?.url.trim() || !processingState) return
   
@@ -158,10 +194,11 @@ export default function Home() {
     setPendingEntry(null)
     setPendingSearchQuery(null)
     setSuggestions([])
-    setProcessingState(null)
-  
-    // ✅ Flag that we should run handleMatch *after* state updates
-    setShouldReRunMatch(true)
+    await continueMatch({
+      output: updatedOutput,
+      links: updatedLinks,
+      remaining: processingState.remaining,
+    })
   }
 
   return (
