@@ -257,7 +257,7 @@ export default function Home() {
                               {sug.title}
                             </a>
                           </div>
-                          <p className="text-xs text-gray-500 mt-1">{sug.url}</p>
+                          <p className="text-xs text-gray-500 mt-1 break-words">{sug.url}</p>
                         </li>
                       ))}
                     </ul>
