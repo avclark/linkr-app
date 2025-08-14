@@ -4,10 +4,10 @@
 import { toast } from 'react-hot-toast'
 import { TrashIcon } from '@heroicons/react/24/outline'
 import { useEffect, useState } from 'react'
-import { fetchLinks, updateLinks } from '@/lib/jsonbin'
+import { fetchLinks, updateLinks, createLink, deleteLink } from '@/lib/links'
 
 export default function LinksPage() {
-  const [links, setLinks] = useState<{ name: string; url: string }[]>([])
+  const [links, setLinks] = useState<{ id: string; name: string; url: string; created_at: string }[]>([])
 
   useEffect(() => {
     fetchLinks().then(setLinks)
@@ -19,13 +19,34 @@ export default function LinksPage() {
     setLinks(updated)
   }
 
-  const handleDelete = (index: number) => {
+  const handleDelete = async (index: number) => {
+    const linkToDelete = links[index]
+    if (linkToDelete.id) {
+      await deleteLink(linkToDelete.id)
+    }
     const updated = links.filter((_, i) => i !== index)
     setLinks(updated)
   }
 
   const handleSave = async () => {
-    await updateLinks(links)
+    // Filter out empty entries and save valid ones
+    const validLinks = links.filter(link => link.name.trim() && link.url.trim())
+    
+    // For each link, either create new or update existing
+    for (const link of validLinks) {
+      if (link.id) {
+        // Update existing link
+        await updateLinks([link])
+      } else {
+        // Create new link
+        await createLink({ name: link.name, url: link.url })
+      }
+    }
+    
+    // Refresh the links list
+    const refreshedLinks = await fetchLinks()
+    setLinks(refreshedLinks)
+    
     toast.success('Links saved!')
   }
 
@@ -55,7 +76,7 @@ export default function LinksPage() {
           </div>
         ))}
         <button
-          onClick={() => setLinks([...links, { name: '', url: '' }])}
+          onClick={() => setLinks([...links, { id: '', name: '', url: '', created_at: new Date().toISOString() }])}
           className="mt-4 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
         >
           Add Row

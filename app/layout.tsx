@@ -3,6 +3,7 @@ import './globals.css'
 import Link from 'next/link'
 import { Toaster } from 'react-hot-toast'
 import type { Metadata } from 'next'
+import Image from 'next/image'
 
 export const metadata: Metadata = {
   title: 'Linkr',
@@ -10,8 +11,8 @@ export const metadata: Metadata = {
 }
 
 const navItems = [
-  { name: 'Links', href: '/links' },
-  { name: 'Settings', href: '/settings' },
+  { name: '⌘L', href: '/links' },
+  { name: '⌘S', href: '/settings' },
 ]
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -24,7 +25,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <div className="flex h-16 items-center justify-between">
                 <div className="flex items-center space-x-8 text-white">
                   <Link href="/" className="text-lg font-bold hover:underline">
-                    Linkr
+                    <Image
+                      src="/linkr_logo.png" // put your combined logo image in `public/logo-full.png`
+                      alt="Linkr logo"
+                      width={87}
+                      height={25}
+                      priority
+                    />
                   </Link>
                   {navItems.map((item) => (
                     <Link key={item.name} href={item.href} className="hover:underline">

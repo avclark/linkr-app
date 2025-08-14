@@ -4,14 +4,16 @@
 import Image from 'next/image'
 import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from '@headlessui/react'
 import Fuse from 'fuse.js'
-import { fetchLinks, updateLinks } from '@/lib/jsonbin'
+import { fetchLinks, updateLinks, createLink } from '@/lib/links'
 import { fetchSearchSuggestions, type SearchSuggestion } from '@/lib/searchSuggestions'
 import { useEffect, useRef, useState, useCallback } from 'react'
 import CopyButton from '@/components/CopyButton'
 
 type LinkEntry = {
+  id: string
   name: string
   url: string
+  created_at: string
   aliases?: string[]
 }
 
@@ -55,7 +57,7 @@ export default function Home() {
     if (saved) setFormat(saved)
   }, [])
 
-  // Load link data from JSONBin
+  // Load link data from Supabase
   useEffect(() => {
     fetchLinks().then(setLinks)
   }, [])
@@ -167,28 +169,36 @@ export default function Home() {
     if (!pendingEntry?.name.trim() || !pendingEntry?.url.trim() || !processingState) return
   
     const newEntry = {
+      id: '', // Will be set by Supabase
       name: pendingEntry.name.trim(),
       url: pendingEntry.url.trim(),
+      created_at: new Date().toISOString(),
       aliases: [],
     }
   
-    const updatedLinks = [...processingState.links, newEntry]
+    // Create the link in Supabase
+    const createdLink = await createLink({ name: newEntry.name, url: newEntry.url })
+    if (!createdLink) {
+      console.error('Failed to create link')
+      return
+    }
+  
+    const updatedLinks = [...processingState.links, createdLink]
     const newLine = format
-      .replaceAll('{name}', newEntry.name)
-      .replaceAll('{url}', newEntry.url)
+      .replaceAll('{name}', createdLink.name)
+      .replaceAll('{url}', createdLink.url)
     const updatedOutput = [...processingState.output, newLine]
   
     // Update input and sync to ref
     const updatedInput = inputRefState.current
       .split('\n')
-      .map((line) => (line.trim() === pendingSearchQuery ? newEntry.name : line))
+      .map((line) => (line.trim() === pendingSearchQuery ? createdLink.name : line))
       .join('\n')
   
     setInput(updatedInput)
     inputRefState.current = updatedInput
   
     setOutput(updatedOutput.join('\n'))
-    await updateLinks(updatedLinks)
   
     // Clear modal state
     setPendingEntry(null)
