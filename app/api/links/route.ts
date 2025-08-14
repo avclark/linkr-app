@@ -1,18 +1,7 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-
-// Create supabase client with fallback values for build time
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key'
-
-const supabase = createClient(supabaseUrl, supabaseAnonKey)
+import { supabase } from '@/lib/supabase'
 
 export async function GET() {
-  // Check if we have real credentials
-  if (supabaseUrl === 'https://placeholder.supabase.co' || supabaseAnonKey === 'placeholder-key') {
-    return NextResponse.json({ error: 'Supabase not configured' }, { status: 500 })
-  }
-
   try {
     const { data, error } = await supabase
       .from('links')
@@ -32,11 +21,6 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  // Check if we have real credentials
-  if (supabaseUrl === 'https://placeholder.supabase.co' || supabaseAnonKey === 'placeholder-key') {
-    return NextResponse.json({ error: 'Supabase not configured' }, { status: 500 })
-  }
-
   try {
     const body = await req.json()
     const { name, url } = body
@@ -63,11 +47,6 @@ export async function POST(req: Request) {
 }
 
 export async function PUT(req: Request) {
-  // Check if we have real credentials
-  if (supabaseUrl === 'https://placeholder.supabase.co' || supabaseAnonKey === 'placeholder-key') {
-    return NextResponse.json({ error: 'Supabase not configured' }, { status: 500 })
-  }
-
   try {
     const body = await req.json()
     const { id, name, url } = body
@@ -95,11 +74,6 @@ export async function PUT(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-  // Check if we have real credentials
-  if (supabaseUrl === 'https://placeholder.supabase.co' || supabaseAnonKey === 'placeholder-key') {
-    return NextResponse.json({ error: 'Supabase not configured' }, { status: 500 })
-  }
-
   try {
     const { searchParams } = new URL(req.url)
     const id = searchParams.get('id')

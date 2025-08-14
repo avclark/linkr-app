@@ -11,8 +11,8 @@ export const metadata: Metadata = {
 }
 
 const navItems = [
-  { name: '⌘L', href: '/links' },
-  { name: '⌘S', href: '/settings' },
+  { name: 'Links', href: '/links' },
+  { name: 'Settings', href: '/settings' },
 ]
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -25,13 +25,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <div className="flex h-16 items-center justify-between">
                 <div className="flex items-center space-x-8 text-white">
                   <Link href="/" className="text-lg font-bold hover:underline">
-                    <Image
-                      src="/linkr_logo.png" // put your combined logo image in `public/logo-full.png`
-                      alt="Linkr logo"
-                      width={87}
-                      height={25}
-                      priority
-                    />
+                    Linkr
                   </Link>
                   {navItems.map((item) => (
                     <Link key={item.name} href={item.href} className="hover:underline">
