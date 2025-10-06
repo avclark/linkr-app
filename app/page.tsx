@@ -4,7 +4,7 @@
 import Image from 'next/image'
 import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from '@headlessui/react'
 import Fuse from 'fuse.js'
-import { fetchLinks, updateLinks, createLink } from '@/lib/links'
+import { fetchLinks, updateLinks, createLink, saveLinksBatch } from '@/lib/links'
 import { fetchSearchSuggestions, type SearchSuggestion } from '@/lib/searchSuggestions'
 import { useEffect, useRef, useState, useCallback } from 'react'
 import CopyButton from '@/components/CopyButton'
@@ -161,7 +161,12 @@ export default function Home() {
     setProcessingState(null)
     setLinks(tempLinks)
     setOutput(tempOutput.join('\n'))
-    await updateLinks(tempLinks)
+    
+    // Use optimized batch save instead of the old updateLinks function
+    const { created, updated } = await saveLinksBatch(tempLinks)
+    if (created.length > 0 || updated.length > 0) {
+      console.log(`✅ Homepage batch save: Created ${created.length}, updated ${updated.length}`)
+    }
   }
 
   // handleAddLink

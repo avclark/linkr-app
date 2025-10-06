@@ -4,7 +4,7 @@
 import { toast } from 'react-hot-toast'
 import { TrashIcon } from '@heroicons/react/24/outline'
 import { useEffect, useState } from 'react'
-import { fetchLinks, updateLinks, createLink, deleteLink } from '@/lib/links'
+import { fetchLinks, updateLinks, createLink, deleteLink, saveLinksBatch } from '@/lib/links'
 
 export default function LinksPage() {
   const [links, setLinks] = useState<{ id: string; name: string; url: string; created_at: string }[]>([])
@@ -29,25 +29,54 @@ export default function LinksPage() {
   }
 
   const handleSave = async () => {
+    const startTime = performance.now()
+    console.log('🚀 Starting optimized save operation...')
+    
     // Filter out empty entries and save valid ones
     const validLinks = links.filter(link => link.name.trim() && link.url.trim())
+    console.log(`📝 Processing ${validLinks.length} valid links`)
     
-    // For each link, either create new or update existing
-    for (const link of validLinks) {
-      if (link.id) {
-        // Update existing link
-        await updateLinks([link])
-      } else {
-        // Create new link
-        await createLink({ name: link.name, url: link.url })
-      }
+    if (validLinks.length === 0) {
+      toast.success('No links to save!')
+      return
     }
     
-    // Refresh the links list
-    const refreshedLinks = await fetchLinks()
-    setLinks(refreshedLinks)
+    // Show loading toast to indicate operation started
+    toast.loading('Saving links...', { id: 'save-links' })
+    console.log('🍞 Loading toast shown at start of operation')
     
-    toast.success('Links saved!')
+    try {
+      // Use batch save for optimal performance
+      const { created, updated } = await saveLinksBatch(validLinks)
+      
+      const saveEndTime = performance.now()
+      console.log(`💾 Batch save completed in ${(saveEndTime - startTime).toFixed(2)}ms`)
+      console.log(`✅ Created ${created.length} links, updated ${updated.length} links`)
+      
+      // Show success toast (dismiss the loading toast)
+      toast.success(`Links saved! Created ${created.length}, updated ${updated.length}`, { id: 'save-links' })
+      console.log('🍞 Success toast shown after batch save')
+      
+      // Do state update in next tick to not block toast
+      Promise.resolve().then(() => {
+        const stateUpdateStartTime = performance.now()
+        const allSavedLinks = [...created, ...updated]
+        const existingLinks = links.filter(link => link.id && !validLinks.some(vl => vl.id === link.id))
+        const newLinksList = [...existingLinks, ...allSavedLinks]
+        
+        console.log(`📊 State update: ${existingLinks.length} existing + ${allSavedLinks.length} saved = ${newLinksList.length} total`)
+        setLinks(newLinksList)
+        const stateUpdateEndTime = performance.now()
+        console.log(`🔄 State update completed in ${(stateUpdateEndTime - stateUpdateStartTime).toFixed(2)}ms`)
+      })
+      
+      const totalTime = performance.now()
+      console.log(`🎉 Total operation took ${(totalTime - startTime).toFixed(2)}ms`)
+      
+    } catch (error) {
+      console.error('❌ Error saving links:', error)
+      toast.error('Failed to save links', { id: 'save-links' })
+    }
   }
 
   return (
