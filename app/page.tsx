@@ -73,7 +73,7 @@ export default function Home() {
   const handleMatch = useCallback(async () => {
     const mentions = inputRefState.current.split('\n').map((m) => m.trim()).filter(Boolean)
     const fuse = new Fuse(links, {
-      keys: ['name', 'aliases'],
+      keys: ['name'],
       threshold: 0.3,
     })
   
@@ -134,7 +134,7 @@ export default function Home() {
   }) => {
     const tempOutput = [...output]
     const fuse = new Fuse(tempLinks, {
-      keys: ['name', 'aliases'],
+      keys: ['name'],
       threshold: 0.3,
     })
 
