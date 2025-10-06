@@ -4,7 +4,7 @@
 import { toast } from 'react-hot-toast'
 import { TrashIcon } from '@heroicons/react/24/outline'
 import { useEffect, useState } from 'react'
-import { fetchLinks, updateLinks, createLink, deleteLink, saveLinksBatch } from '@/lib/links'
+import { fetchLinks, deleteLink, saveLinksBatch } from '@/lib/links'
 
 export default function LinksPage() {
   const [links, setLinks] = useState<{ id: string; name: string; url: string; created_at: string }[]>([])
