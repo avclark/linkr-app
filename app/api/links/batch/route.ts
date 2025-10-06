@@ -78,7 +78,8 @@ export async function PUT(req: Request) {
       return NextResponse.json(results)
     } catch (error) {
       console.error('Batch update error:', error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
+      return NextResponse.json({ error: errorMessage }, { status: 500 })
     }
   } catch (err) {
     console.error('Batch PUT error:', err)
