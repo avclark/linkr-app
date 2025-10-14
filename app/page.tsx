@@ -26,7 +26,7 @@ export default function Home() {
   const [links, setLinks] = useState<LinkEntry[]>([])
   const [format, setFormat] = useState('- {name}: {url}')
   const [modalJustOpened, setModalJustOpened] = useState(false)
-  const [pendingEntry, setPendingEntry] = useState<{ name: string; url: string } | null>(null)
+  const [pendingEntry, setPendingEntry] = useState<{ name: string; url: string; isOneOff: boolean } | null>(null)
   const [pendingSearchQuery, setPendingSearchQuery] = useState<string | null>(null)
   const [processingState, setProcessingState] = useState<{
     output: string[]
@@ -88,7 +88,7 @@ export default function Home() {
         const { name, url } = result[0].item
         tempOutput.push(format.replaceAll('{name}', name).replaceAll('{url}', url))
       } else {
-        setPendingEntry({ name: mention.trim(), url: '' })
+        setPendingEntry({ name: mention.trim(), url: '', isOneOff: false })
         setModalJustOpened(true)
         setPendingSearchQuery(mention.trim())
         setProcessingState({
@@ -146,7 +146,7 @@ export default function Home() {
         const { name, url } = result[0].item
         tempOutput.push(format.replaceAll('{name}', name).replaceAll('{url}', url))
       } else {
-        setPendingEntry({ name: nextMention.trim(), url: '' })
+        setPendingEntry({ name: nextMention.trim(), url: '', isOneOff: false })
         setModalJustOpened(true)
         setPendingSearchQuery(nextMention.trim())
         setProcessingState({
@@ -174,30 +174,42 @@ export default function Home() {
     if (!pendingEntry?.name.trim() || !pendingEntry?.url.trim() || !processingState) return
   
     const newEntry = {
-      id: '', // Will be set by Supabase
+      id: '', // Will be set by Supabase (if saved)
       name: pendingEntry.name.trim(),
       url: pendingEntry.url.trim(),
       created_at: new Date().toISOString(),
       aliases: [],
     }
   
-    // Create the link in Supabase
-    const createdLink = await createLink({ name: newEntry.name, url: newEntry.url })
-    if (!createdLink) {
-      console.error('Failed to create link')
-      return
+    let linkToUse: LinkEntry
+    let updatedLinks: LinkEntry[]
+    
+    if (pendingEntry.isOneOff) {
+      // For one-off links, don't save to database, just use the entry directly
+      linkToUse = newEntry
+      updatedLinks = processingState.links // Don't add to links array
+      console.log('🔗 One-off link created (not saved to database):', newEntry.name)
+    } else {
+      // For regular links, save to database
+      const createdLink = await createLink({ name: newEntry.name, url: newEntry.url })
+      if (!createdLink) {
+        console.error('Failed to create link')
+        return
+      }
+      linkToUse = createdLink
+      updatedLinks = [...processingState.links, createdLink]
+      console.log('💾 Link saved to database:', createdLink.name)
     }
   
-    const updatedLinks = [...processingState.links, createdLink]
     const newLine = format
-      .replaceAll('{name}', createdLink.name)
-      .replaceAll('{url}', createdLink.url)
+      .replaceAll('{name}', linkToUse.name)
+      .replaceAll('{url}', linkToUse.url)
     const updatedOutput = [...processingState.output, newLine]
   
     // Update input and sync to ref
     const updatedInput = inputRefState.current
       .split('\n')
-      .map((line) => (line.trim() === pendingSearchQuery ? createdLink.name : line))
+      .map((line) => (line.trim() === pendingSearchQuery ? linkToUse.name : line))
       .join('\n')
   
     setInput(updatedInput)
@@ -274,6 +286,19 @@ export default function Home() {
                   className="mt-3 w-full p-2 border rounded"
                   placeholder="https://example.com"
                 />
+
+                <div className="mt-3 flex items-center">
+                  <input
+                    type="checkbox"
+                    id="one-off-checkbox"
+                    checked={pendingEntry?.isOneOff || false}
+                    onChange={(e) => setPendingEntry((prev) => prev && { ...prev, isOneOff: e.target.checked })}
+                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="one-off-checkbox" className="ml-2 text-sm text-gray-700">
+                    One-off (don't save to database)
+                  </label>
+                </div>
 
                 {loadingSuggestions && (
                   <p className="mt-2 text-sm text-gray-500 italic">Searching suggestions...</p>
