@@ -296,7 +296,7 @@ export default function Home() {
                     className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                   />
                   <label htmlFor="one-off-checkbox" className="ml-2 text-sm text-gray-700">
-                    One-off (don't save to database)
+                    One-off (don&apos;t save to database)
                   </label>
                 </div>
 
