@@ -311,9 +311,15 @@ export default function Home() {
                       {suggestions.map((sug, i) => (
                         <li
                           key={i}
-                          onClick={() =>
+                          onClick={() => {
                             setPendingEntry((prev) => prev && { ...prev, url: sug.url })
-                          }
+                            // Refocus the input field so Return key works
+                            setTimeout(() => {
+                              if (inputRef.current) {
+                                inputRef.current.focus()
+                              }
+                            }, 0)
+                          }}
                           className="cursor-pointer rounded-lg border p-3 hover:bg-gray-50 transition"
                         >
                           <div className="flex items-center gap-2">
