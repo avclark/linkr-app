@@ -169,6 +169,27 @@ export default function Home() {
     }
   }
 
+  // handleSkip
+  const handleSkip = async () => {
+    if (!processingState) return
+    
+    // Skip the current mention - don't add anything to output or database
+    // Just proceed to the next mention in the queue
+    console.log('⏭️ Skipping mention:', pendingSearchQuery)
+    
+    // Clear modal state
+    setPendingEntry(null)
+    setPendingSearchQuery(null)
+    setSuggestions([])
+    
+    // Continue with the next mention using the same logic as after adding/canceling
+    await continueMatch({
+      output: processingState.output,
+      links: processingState.links,
+      remaining: processingState.remaining,
+    })
+  }
+
   // handleAddLink
   const handleAddLink = async () => {
     if (!pendingEntry?.name.trim() || !pendingEntry?.url.trim() || !processingState) return
@@ -260,7 +281,7 @@ export default function Home() {
         />
         <div className="fixed inset-0 z-10 w-screen overflow-y-auto">
           <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-            <DialogPanel className="relative transform overflow-hidden rounded-lg bg-white px-4 pt-5 pb-4 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-sm sm:p-6">
+            <DialogPanel className="relative transform overflow-hidden rounded-lg bg-white px-4 pt-5 pb-4 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-md sm:p-6">
               <div className="text-center">
                 <DialogTitle as="h3" className="text-base font-semibold text-gray-900">
                   No match for “{pendingEntry?.name}”
@@ -347,7 +368,7 @@ export default function Home() {
                   </div>
                 )}
               </div>
-              <div className="mt-5 sm:mt-6 sm:grid sm:grid-flow-row-dense sm:grid-cols-2 sm:gap-3">
+              <div className="mt-5 sm:mt-6 sm:grid sm:grid-flow-row-dense sm:grid-cols-3 sm:gap-3">
                 <button
                   onClick={() => {
                     setPendingEntry(null)
@@ -357,6 +378,12 @@ export default function Home() {
                   className="inline-flex justify-center rounded-md bg-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-300"
                 >
                   Cancel
+                </button>
+                <button
+                  onClick={handleSkip}
+                  className="inline-flex justify-center rounded-md bg-yellow-500 px-3 py-2 text-sm font-medium text-white hover:bg-yellow-600"
+                >
+                  Skip
                 </button>
                 <button
                   onClick={handleAddLink}
