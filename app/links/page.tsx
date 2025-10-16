@@ -19,6 +19,19 @@ export default function LinksPage() {
     setLinks(updated)
   }
 
+
+  const handleAddRow = () => {
+    // Add a new blank row at the beginning of the links array (so it appears at the top)
+    const newLink = {
+      id: '',
+      name: '',
+      url: '',
+      created_at: new Date().toISOString()
+    }
+    
+    setLinks([newLink, ...links])
+  }
+
   const handleDelete = async (index: number) => {
     const linkToDelete = links[index]
     if (linkToDelete.id) {
@@ -82,6 +95,24 @@ export default function LinksPage() {
   return (
     <div>
       <h2 className="text-xl font-semibold mb-4">Edit Links</h2>
+      
+      {/* Buttons at the top */}
+      <div className="mb-4">
+        <button
+          onClick={handleAddRow}
+          className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+        >
+          Add Row
+        </button>
+        <button
+          onClick={handleSave}
+          className="ml-4 px-6 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+        >
+          Save All
+        </button>
+      </div>
+
+      {/* Links table */}
       <div className="space-y-4">
         {links.map((link, i) => (
           <div key={i} className="flex gap-2 items-center">
@@ -104,18 +135,6 @@ export default function LinksPage() {
             </button>
           </div>
         ))}
-        <button
-          onClick={() => setLinks([...links, { id: '', name: '', url: '', created_at: new Date().toISOString() }])}
-          className="mt-4 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
-        >
-          Add Row
-        </button>
-        <button
-          onClick={handleSave}
-          className="mt-4 ml-4 px-6 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
-        >
-          Save All
-        </button>
       </div>
     </div>
   )
