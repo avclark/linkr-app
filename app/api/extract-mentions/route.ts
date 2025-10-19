@@ -1,43 +1,38 @@
 // app/api/extract-mentions/route.ts
-import { NextRequest, NextResponse } from 'next/server'
-import OpenAI from 'openai'
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
+import { extractMentionsFromTranscript } from '@/lib/extractMentions'
+import { chunkTranscript } from '@/lib/chunkTranscript'
 
-export async function POST(req: NextRequest) {
-  const { transcript } = await req.json()
+export async function POST(req: Request) {
+  const body = await req.json()
+  const transcript = body.transcript // ✅ match front‑end
 
-  if (!transcript) {
-    return new Response(result.trim(), {
-      status: 200,
-      headers: {
-        'Content-Type': 'text/plain',
-      },
+  if (typeof transcript !== 'string') {
+    return new Response('Invalid input: transcript must be a string.', {
+      status: 400,
     })
   }
 
-  try {
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [
-        {
-          role: 'system',
-          content:
-            'Extract a list of all names or entities mentioned in the transcript, such as people, libraries, companies, or products. Return them as a plain text list, one per line, without commentary or additional formatting.',
-        },
-        {
-          role: 'user',
-          content: transcript,
-        },
-      ],
-    })
+  const chunks = chunkTranscript(transcript)
+  const allMentions: string[] = []
 
-    const result = response.choices[0]?.message?.content ?? ''
-    return NextResponse.json({ mentions: result.trim() })
-  } catch (error) {
-    console.error('OpenAI error:', error)
-    return NextResponse.json({ error: 'Failed to extract mentions' }, { status: 500 })
+  for (const chunk of chunks) {
+    const mentions = await extractMentionsFromTranscript(chunk)
+    allMentions.push(...mentions.split('\n'))
   }
+
+  // remove duplicates but keep chronological order
+  const seen = new Set<string>()
+  const uniqueMentions: string[] = []
+
+  for (const mention of allMentions) {
+    if (!seen.has(mention)) {
+      seen.add(mention)
+      uniqueMentions.push(mention)
+    }
+  }
+
+  return new Response(uniqueMentions.join('\n'), {
+    headers: { 'Content-Type': 'text/plain' },
+  })
 }

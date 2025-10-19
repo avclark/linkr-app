@@ -3,21 +3,31 @@
 
 import { useState } from 'react'
 import CopyButton from '@/components/CopyButton'
-import { useCompletion } from '@ai-sdk/react'
 
 export default function TranscriptPage() {
   const [transcript, setTranscript] = useState('')
   const [mentionsOutput, setMentionsOutput] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
 
-  const { complete, isLoading } = useCompletion({
-    api: '/api/extract-mentions',
-    onFinish: (_prompt, completion) => {
-      setMentionsOutput(completion)
-    },
-  })
+  const handleExtractMentions = async () => {
+    setIsLoading(true)
+    try {
+      const response = await fetch('/api/extract-mentions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ transcript }),
+      })
 
-  const handleExtractMentions = () => {
-    complete(transcript)
+      const text = await response.text()
+      setMentionsOutput(text)
+    } catch (error) {
+      setMentionsOutput('Error extracting mentions.')
+      console.error(error)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
